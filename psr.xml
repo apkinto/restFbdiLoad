@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <psConfiguration>
     <variableList>
-        <!--<url>https://fuscdrmsmc203-fa-ext.us.oracle.com/fscmRestApi/resources/11.13.18.05</url>-->
-        <url>https://m6scmc231nd.fa.dc1.c9dev2.oraclecorp.com/fscmRestApi/resources/11.13.18.05</url>
-		<inputDir>C:\Users\alkim.ORADEV\Documents\1PS\fbdi</inputDir>
+        <url>https://<CLOUDSERVER>/fscmRestApi/resources/11.13.18.05</url>
+	<inputDir>C:\Users\alkim.ORADEV\Documents\1PS\fbdi</inputDir>
         <user>PS_ALL</user>
         <pimUser>PIMQA</pimUser>
-        <password>Welcome1</password>
+        <password>PW</password>
         <interval>15</interval>
         <resourceList>resources.txt</resourceList>
         <batchChunks>100</batchChunks>
