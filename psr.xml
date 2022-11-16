@@ -2,7 +2,7 @@
 <psConfiguration>
     <variableList>
         <url>https://<CLOUDSERVER>/fscmRestApi/resources/11.13.18.05</url>
-	<inputDir>C:\Users\alkim.ORADEV\Documents\1PS\fbdi</inputDir>
+	<inputDir></inputDir>
         <user>PS_ALL</user>
         <pimUser>PIMQA</pimUser>
         <password>PW</password>
