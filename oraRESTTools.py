@@ -81,6 +81,8 @@ def postRest( url, session, body, requestHeader, authorization, log, count, *arg
 		r = session.post( url, json=body, headers=requestHeader, auth=authorization )
 		#print ( 'XXX', r.status_code, r.text )
 		data = r.content
+		#print("===",data)
+		#print("***", r.content)
 		output = json.loads(data)
 		time = getTime() - start
 		if argv:
@@ -199,8 +201,8 @@ def scmAuth ( user, password ):
 	r = requests.Session()
 	r.auth = ( user, password )
 	#r.headers={	'Cache-Control': 'no-cache','Content-Type': 'application/vnd.oracle.adf.action+json', 'REST-Framework-Version': '8', 'Connection': 'close'}
-	#r.headers={	'Cache-Control': 'no-cache','Content-Type': 'application/json', 'REST-Framework-Version': '8', 'Connection': 'close'}
-	r.headers = {'Cache-Control': 'no-cache', 'Content-Type': 'application/vnd.oracle.adf.resourceitem+json', 'REST-Framework-Version': '8', 'Connection': 'close'}
+	r.headers={	'Cache-Control': 'no-cache','Content-Type': 'application/json', 'REST-Framework-Version': '8', 'Connection': 'close'}
+	#r.headers = {'Cache-Control': 'no-cache', 'Content-Type': 'application/vnd.oracle.adf.resourceitem+json', 'REST-Framework-Version': '8', 'Connection': 'close'}
 	payload = ''
 	
 	return r, r.auth, r.headers, payload
@@ -295,6 +297,36 @@ def getEssJobId(output, jobIdField):
 	
 	return jobId
 
+def getLogs(essUrl, jobId, jobDefName, outDir, log, mySession, myAuth, myHeader):
+	log.info('\t\t-->Getting ESS Logs %s %s...' % (jobId, jobDefName))
+
+	logName = jobDefName + jobId + ".zip"
+
+	finderUrl = '?finder=ESSJobExecutionDetailsRF;requestId=' + str(jobId) + ',fileType=ALL'
+	logsUrl = getUrl(essUrl, finderUrl)
+
+	r = mySession.get( logsUrl, headers=myHeader, params=None, auth=myAuth )
+	output = json.loads(r.content)
+	items = getEssJobId(output, 'items')
+	docContent = base64.b64decode(getEssJobId(items[0], 'DocumentContent'))
+	with open(outDir + "/" + logName, "wb") as f:
+		f.write(docContent)
+
+def essDetails(essUrl, jobId, log, mySession, myAuth, myHeader):
+	log.info('\t\t-->Getting ESS Detailis for %s...' % (jobId))
+
+	finderUrl = '?finder=ESSExecutionDetailsRF;requestId=' + str(jobId)
+	detailsUrl = getUrl(essUrl, finderUrl)
+
+	r = mySession.get( detailsUrl, headers=myHeader, params=None, auth=myAuth )
+	output = json.loads(r.content)
+
+	items = getEssJobId(output, 'items')
+	requestDetailsDict = json.loads(getEssJobId(items[0], 'RequestStatus'))
+	essDetails = json.dumps(requestDetailsDict, sort_keys=False, indent=10)
+
+	log.info('%s' % (essDetails))
+
 def toBase64(inputDir, file):
 	zipFile = os.path.join(inputDir, file)
 	with open(zipFile,'rb') as f:
@@ -303,3 +335,7 @@ def toBase64(inputDir, file):
 		base64_message = base64_encoded.decode('utf-8')
 
 	return base64_message
+
+
+#TODO, zip archive (using shutil) shutil.make_archive('C:\\Users\\alkim.ORADEV\\Documents\\1PS\\fbdi\\1\\WisWdImport', 'zip', 'C:\\Users\\alkim.ORADEV\\Documents\\1PS\\fbdi\\1\\WisWdImport')
+#TODO write ess job status for parent child

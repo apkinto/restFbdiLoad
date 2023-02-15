@@ -23,7 +23,7 @@ def pollEss(essJobId, interval, restCount, essSession, essAuth, essHeader):
 	essStatus=None
 
 	requestHeader['Content-Type'] = 'application/json'
-	while essStatus not in ["ERROR", "SUCCEEDED"]:
+	while essStatus not in ["ERROR", "SUCCEEDED", "WARNING"]:
 		essOutput, t, status, statusText, restCount = postRest( postUrl, essSession, essBody, essHeader, essAuth, log, restCount )
 		essStatus = essOutput['RequestStatus']
 		log.info('\t\t...ESS JobId: %s --> %s' % (essJobId, essStatus))
@@ -60,6 +60,55 @@ def runSteps(steps, plansXref, statusField, statusCodes, scpAction, restCount, i
 			pollEss(essJobId, interval, restCount)
 		else:
 			log.info('\tERROR:\t\n%s' % (statusText))
+
+def createCategories(restCount):
+	log.info('\tCreating Categories')
+	start = getTime()
+	catalogs = getExcelData(excelFile, 'catalog')
+	categories = getExcelData(excelFile, 'categories')
+	Id = 1
+	catalogUrl = getUrl(url, 'itemCatalogs')
+	categoryUrl = getUrl(url, 'itemCategories')
+
+	for w in catalogs:
+		log.info('\t\t-->Getting Catalogs...')
+
+		#catalog = {'CatalogCode': 'APK_CATALOG', 'CatalogName': 'APK_CATALOG', 'Description': 'APK_CATALOG'}
+		catalog = {}
+		catalog['CatalogCode'] = w['CatalogCode']
+		catalog['CatalogName'] = w['CatalogCode']
+		catalog['Description'] = w['CatalogCode']
+		catalog['MasterControlledFlag'] = True
+		catalog['StartDate'] = datetime.datetime.now(datetime.timezone.utc).strftime(("%Y-%m-%d"))
+		catalog['EndDate'] = None
+		catalog['AssignItemsToLeafOnlyFlag'] = True
+		catalog['AllowItemToMultipleCategoriesFlag'] = True
+		catalog['PublicCatalogFlag'] = True
+		catalog['DefaultCategoryCode'] = None
+		#print(catalog)
+
+		output, t, status, statusText, restCount = postRest(catalogUrl, session, catalog, requestHeader, authorization, log, restCount)
+		Id += 1
+		#print (status, statusText)
+
+	for w in categories:
+		log.info('\t\t-->Getting Categories...')
+		category = {}
+
+		category['CategoryCode'] = w['CategoryCode']
+		category['CategoryName'] = w['CategoryCode']
+		category['CatalogCode'] = catalog['CatalogCode']
+		category['Description'] = catalog['CatalogCode']
+		category['StartDate'] = str(datetime.datetime.now(datetime.timezone.utc).strftime(("%Y-%m-%d")))
+		category['ItemsOnlyFlag'] = False
+
+		output, t, status, statusText, restCount = postRest(categoryUrl, session, category, requestHeader, authorization, log, restCount)
+		Id += 1
+
+	TotalTime = getTime() - start
+	log.info('\t%s %s Categories : %s REST calls in %s\tsec' % (status, Id, restCount, TotalTime))
+	if status != 201:
+		log.info('\t\t-->%s' % (statusText))
 
 def createWc(restCount):
 	log.info('\tCreating WorkCenters')
@@ -127,37 +176,6 @@ def createResources(restCount, batchChunks):
 		TotalTime = getTime() - start
 		log.info('\t\tCreated Resource %s REST calls in %s\tsec' % (restCount, TotalTime))
 
-'''  Creating Batch WC resources doesn't work (BUG)
-def createWcResource(wc, restCount, batchChunks):
-	log.info('\tCreating WorkCenter Resources')
-	start = getTime()
-	resources = getExcelData(excelFile, 'resources')
-	Id = 1
-
-	partsList = []
-	log.info('\t\t-->Getting WorkCenter Resources...')
-	for r in resources:
-		wcResources = {}
-		wcResources['ResourceName'] = r['ResourceName']
-		wcResources['ResourceQuantity'] = int(r['ResourceQuantity'])
-		wcResources['Available24HoursFlag'] = 'false'
-		wcResources['CheckCtpFlag'] = 'false'
-		wcResources['UtilizationPercentage'] = 100
-		wcResources['EfficiencyPercentage'] = 100
-		print(wcResources)
-		parts = getParts(Id, getUrl('', '/workCenters', str(wc), 'child/WorkCenterResource' ), 'create', wcResources)
-		partsList.append(parts)
-		Id += 1
-
-	chunks = [int(batchChunks)]
-
-	for c in chunks:
-		log.info('\t\tUpdating %s WorkCenter Resource Records in batches of %s' % (len(partsList), c))
-		t, status, statusText, restCount = postBatchRest(url, session, partsList, c, authorization, log, restCount)
-		TotalTime = getTime() - start
-		log.info('\t\tCreated WorkCenter Resource %s REST calls in %s\tsec' % (restCount, TotalTime))
-'''
-
 def createWcResourceSingle(wc, restCount, batchChunks):
 	log.info('\tCreating WorkCenter Resources')
 	start = getTime()
@@ -200,26 +218,6 @@ def uploadUcm(ucmurl, ucmFile, ucmFilename, ucmAccount, restCount):
 
 	return docId
 
-def loadInterface(loadUrl, essParameters, inter, restCount):
-	log.info('\t\t-->Loading Interface...')
-
-	loadBody = {}
-	loadBody['OperationName'] = "submitESSJobRequest"
-	loadBody['JobPackageName'] = "/oracle/apps/ess/financials/commonModules/shared/common/interfaceLoader/"
-	loadBody['JobDefName'] = "InterfaceLoaderController"
-	loadBody['ESSParameters'] = essParameters
-
-	print (loadBody)
-
-	output, t, status, statusText, restCount = postRest(loadUrl, session, loadBody, requestHeader, authorization, log, restCount)
-	essJobId = getEssJobId(output, 'ReqstId')
-
-	pollEss(essJobId, inter, restCount)
-
-	log.info('\t\t\t--essProcessID: %s Status: %s...' %(essJobId, status))
-
-	return essJobId
-
 def submitEssJob(essUrl, jobPackName, jobDefName, essParam, inter, restCount, mySession, myAuth, myHeader):
 	log.info('\t\t-->Launching ESS %s...' %(jobDefName))
 
@@ -235,8 +233,88 @@ def submitEssJob(essUrl, jobPackName, jobDefName, essParam, inter, restCount, my
 	essJobId = getEssJobId(output, 'ReqstId')
 
 	pollEss(essJobId, inter, restCount, mySession, myAuth, myHeader)
+	getLogs(essUrl, essJobId, jobDefName, inputDir, log, mySession, myAuth, myHeader)
+	essDetails(erpUrl, essJobId, log, mySession, myAuth, myHeader)
 
 	log.info('\t\t\t--essProcessID: %s Status: %s...' % (essJobId, status))
+
+def createItems(batchId):
+	#UCM
+	itemFile = toBase64(inputDir, itemZip)
+	itemFileName = itemZip
+	itemAccount = "scm$/item$/import$"
+
+	itemUcmDocId = uploadUcm(erpUrl, itemFile, itemFileName, itemAccount, restCount)
+	time.sleep(3)
+
+	#LoadInterface
+	loadItemParams = ','.join(('29', itemUcmDocId, 'N', 'N'))
+	submitEssJob(erpUrl, interfacePckName, interfaceJobDefName, loadItemParams, int(interval), restCount, pimSession, pimAuthorization, pimRequestHeader)
+
+	#LoadTables
+	itemJobPackName = "/oracle/apps/ess/scm/productModel/items/"
+	itemJobDefName = "ItemImportJobDef"
+	itemParameters = ','.join((batchId, '#NULL', 'CREATE', 'Y', 'ORA_AR', 'Y', 'Y'))
+	submitEssJob(erpUrl, itemJobPackName, itemJobDefName, itemParameters, int(interval)*8, restCount, pimSession, pimAuthorization, pimRequestHeader)
+
+def createStructure(batchId):
+	#UCM
+	structFile = toBase64(inputDir, structureZip)
+	structFileName = structureZip
+	structAccount = "scm$/item$/import$"
+
+	structUcmDocId = uploadUcm(erpUrl, structFile, structFileName, structAccount, restCount)
+	time.sleep(3)
+
+	#LoadInterface
+	loadstructParams = ','.join(('29', structUcmDocId, 'N', 'N'))
+	submitEssJob(erpUrl, interfacePckName, interfaceJobDefName, loadstructParams, int(interval), restCount, pimSession, pimAuthorization, pimRequestHeader)
+
+	#LoadTables
+	structJobPackName = "/oracle/apps/ess/scm/productModel/items/"
+	structJobDefName = "ItemImportJobDef"
+	structParameters = ','.join((batchId, '#NULL', 'CREATE', 'Y', 'ORA_AR', 'Y', 'Y'))
+	submitEssJob(erpUrl, structJobPackName, structJobDefName, structParameters, int(interval)*2, restCount, pimSession, pimAuthorization, pimRequestHeader)
+
+def createWd(batchId):
+	# UCM
+	wdFile = toBase64(inputDir, wdZip)
+	wdFileName = wdZip
+	wdAccount = "scm$/wis$/workdefinition$"
+
+	wdUcmDocId = uploadUcm(erpUrl, wdFile, wdFileName, wdAccount, restCount)
+	time.sleep(3)
+
+	# LoadInterface
+	loadWdParams = ','.join(('133', wdUcmDocId, 'N', 'N'))
+	submitEssJob(erpUrl, interfacePckName, interfaceJobDefName, loadWdParams, int(interval) * 2, restCount, session,
+				 authorization, requestHeader)
+
+	# LoadTables
+	wdJobPackName = "/oracle/apps/ess/scm/commonWorkSetup/workDefinitions/massImport/"
+	wdJobDefName = "ImportWorkDefinitionJob"
+	wdParameters = batchId
+	submitEssJob(erpUrl, wdJobPackName, wdJobDefName, wdParameters, int(interval) * 2, restCount, session, authorization, requestHeader)
+
+def createWo(batchId):
+	# UCM
+	woFile = toBase64(inputDir, woZip)
+	woFileName = woZip
+	woAccount = "scm$/wis$/workorder$"
+
+	woUcmDocId = uploadUcm(erpUrl, woFile, woFileName, woAccount, restCount)
+
+	# LoadInterface
+	loadWoParams = ','.join(('63', woUcmDocId, 'N', 'N'))
+	submitEssJob(erpUrl, interfacePckName, interfaceJobDefName, loadWoParams, int(interval) * 2, restCount, session,
+				 authorization, requestHeader)
+
+	# LoadTables
+	woJobPackName = "/oracle/apps/ess/scm/commonWorkExecution/massImport/workOrders/"
+	woJobDefName = "ImportWorkOrdersJob"
+	woParameters = batchId
+	submitEssJob(erpUrl, woJobPackName, woJobDefName, woParameters, int(interval) * 2, restCount, session, authorization, requestHeader)
+
 
 if __name__ == "__main__":
 	'''	Set Variables from XML, logging, and establish Session 	'''
@@ -255,101 +333,18 @@ if __name__ == "__main__":
 
 	log.info('REST Server: %s' % ( url ))
 
-"""
+	''' Categories START'''
+	createCategories(restCount)
+
 	''' WC and Resources START'''
-	
 	wcId = createWc(restCount)
 	createResources(restCount, batchChunks)
 	createWcResourceSingle(wcId, restCount, batchChunks)
-	
-	''' WC and Resources END'''
 
-	''' Items Start'''
-	
-	#UCM
-	itemFile = item64
-	itemFileName = "egpitemsimport.zip"
-	itemAccount = "scm$/item$/import$"
+	createItems('1111')
+	createStructure('888')
+	createWd('8765')
+	createWo('1144')
+	#createWo('4411')
 
-	itemUcmDocId = uploadUcm(erpUrl, itemFile, itemFileName, itemAccount, restCount)
-	time.sleep(3)
-
-	#LoadInterface
-	loadItemParams = ','.join(('29', itemUcmDocId, 'N', 'N'))
-	submitEssJob(erpUrl, interfacePckName, interfaceJobDefName, loadItemParams, int(interval), restCount, pimSession, pimAuthorization, pimRequestHeader)
-
-	#LoadTables
-	itemJobPackName = "/oracle/apps/ess/scm/productModel/items/"
-	itemJobDefName = "ItemImportJobDef"
-	itemParameters = ','.join(('1111', '#NULL', 'CREATE', 'Y', 'ORA_AR', 'Y', 'Y'))		# 1111 is the batchId defined in the CSV
-	submitEssJob(erpUrl, itemJobPackName, itemJobDefName, itemParameters, int(interval)*8, restCount, pimSession, pimAuthorization, pimRequestHeader)
-
-	''' Items End	'''
-
-	''' Structure Start'''
-	
-	#UCM
-	structFile = structure64
-	structFileName = "EgpStructuresImport.zip"
-	structAccount = "scm$/item$/import$"
-
-	structUcmDocId = uploadUcm(erpUrl, structFile, structFileName, structAccount, restCount)
-	time.sleep(3)
-
-	#LoadInterface
-	loadstructParams = ','.join(('29', structUcmDocId, 'N', 'N'))
-	submitEssJob(erpUrl, interfacePckName, interfaceJobDefName, loadstructParams, int(interval), restCount, pimSession, pimAuthorization, pimRequestHeader)
-
-	#LoadTables
-	structJobPackName = "/oracle/apps/ess/scm/productModel/items/"
-	structJobDefName = "ItemImportJobDef"
-	structParameters = ','.join(('888', '#NULL', 'CREATE', 'Y', 'ORA_AR', 'Y', 'Y'))		# 888 is the batchId defined in the CSV
-	submitEssJob(erpUrl, structJobPackName, structJobDefName, structParameters, int(interval)*2, restCount, pimSession, pimAuthorization, pimRequestHeader)
-	
-	''' Structure End	'''
-
-	''' WD Start'''
-	
-	#UCM
-	wdFile = wd64
-	wdFileName = "WisWdBatches.zip"
-	wdAccount = "scm$/wis$/workdefinition$"
-
-	wdUcmDocId = uploadUcm(erpUrl, wdFile, wdFileName, wdAccount, restCount)
-	time.sleep(3)
-
-	#LoadInterface
-	loadWdParams = ','.join(('133', wdUcmDocId, 'N', 'N'))
-	submitEssJob(erpUrl, interfacePckName, interfaceJobDefName, loadWdParams, int(interval)*2, restCount, session, authorization, requestHeader)
-
-	#LoadTables
-	wdJobPackName = "/oracle/apps/ess/scm/commonWorkSetup/workDefinitions/massImport/"
-	wdJobDefName = "ImportWorkDefinitionJob"
-	wdParameters = "8765"		# 1111 is the batchId defined in the CSV
-	submitEssJob(erpUrl, wdJobPackName, wdJobDefName, wdParameters, int(interval)*2, restCount, session, authorization, requestHeader)
-	
-	''' WD End	'''
-
-	''' WO Start'''
-	#UCM
-	woFile = wo64
-	woFileName = "WieWoBatches.zip"
-	woAccount = "scm$/wis$/workorder$"
-
-	woUcmDocId = uploadUcm(erpUrl, woFile, woFileName, woAccount, restCount)
-	time.sleep(3)
-
-	#LoadInterface
-	loadWoParams = ','.join(('63', woUcmDocId, 'N', 'N'))
-	submitEssJob(erpUrl, interfacePckName, interfaceJobDefName, loadWoParams, int(interval)*2, restCount, session, authorization, requestHeader)
-
-
-	#LoadTables
-	woJobPackName = "/oracle/apps/ess/scm/commonWorkExecution/massImport/workOrders/"
-	woJobDefName = "ImportWorkOrdersJob"
-	woParameters = "1144"		# 1144 is the batchId defined in the CSV
-	submitEssJob(erpUrl, woJobPackName, woJobDefName, woParameters, int(interval)*2, restCount, session, authorization, requestHeader)
-	''' WO End	'''
-"""
-wofile = toBase64(inputDir, "WieWoBatches.zip")
-print(wofile)
+	#essDetails(erpUrl, 57127, log, session, authorization, requestHeader)
