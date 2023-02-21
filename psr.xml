@@ -17,5 +17,9 @@
         <wdZip>WisWdImport.zip</wdZip>
         <structureZip>EgpStructuresImport.Zip</structureZip>
         <woZip>WieWoBatches.zip</woZip>
+        <itemBatch>1111</itemBatch>
+        <structureBatch>888</structureBatch>
+        <wdBatch>8765</wdBatch>
+        <woBatch>1144</woBatch>
     </variableList>
 </psConfiguration>

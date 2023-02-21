@@ -341,10 +341,10 @@ if __name__ == "__main__":
 	createResources(restCount, batchChunks)
 	createWcResourceSingle(wcId, restCount, batchChunks)
 
-	createItems('1111')
-	createStructure('888')
-	createWd('8765')
-	createWo('1144')
+	createItems((int(itemBatch))
+	createStructure(int(structureBatch))
+	createWd(int(wdBatch))
+	createWo(int(woBatch))
 	#createWo('4411')
 
 	#essDetails(erpUrl, 57127, log, session, authorization, requestHeader)
