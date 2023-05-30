@@ -137,11 +137,13 @@ def createWc(restCount):
 		workCenter['WorkAreaName'] = w['WorkAreaName']
 		output, t, status, statusText, restCount = postRest(postWcUrl, session, workCenter, requestHeader, authorization, log, restCount)
 		Id += 1
+		print(status, statusText, output)
 		workCenterId = getEssJobId(output, 'WorkCenterId')
+
 		#print (workCenterId)
 
 	TotalTime = getTime() - start
-	log.info('\t%s WorkCenters : %s REST calls in %s\tsec' % (Id, restCount, TotalTime))
+	log.info('\t%s %s WorkCenters : %s REST calls in %s\tsec' % (status, Id, restCount, TotalTime))
 	if status != 201:
 		log.info('\t\t-->%s' % (statusText))
 
@@ -176,7 +178,7 @@ def createResources(restCount, batchChunks):
 		TotalTime = getTime() - start
 		log.info('\t\tCreated Resource %s REST calls in %s\tsec' % (restCount, TotalTime))
 
-def createWcResourceSingle(wc, restCount, batchChunks):
+def createWcResourceSingle(wc, restCount):
 	log.info('\tCreating WorkCenter Resources')
 	start = getTime()
 	resources = getExcelData(excelFile, 'resources')
@@ -198,7 +200,9 @@ def createWcResourceSingle(wc, restCount, batchChunks):
 		Id += 1
 
 	TotalTime = getTime() - start
-	log.info('\t%s Work Center Resource : %s REST calls in %s\tsec' % (Id, restCount, TotalTime))
+	log.info('\t%s %s Work Center Resource : %s REST calls in %s\tsec' % (status, Id, restCount, TotalTime))
+	if status != 201:
+		log.info('\t\t-->%s' % (statusText))
 
 def uploadUcm(ucmurl, ucmFile, ucmFilename, ucmAccount, restCount):
 	log.info('\t\t-->Uploading %s to UCM...' %(ucmFilename))
@@ -315,6 +319,25 @@ def createWo(batchId):
 	woParameters = batchId
 	submitEssJob(erpUrl, woJobPackName, woJobDefName, woParameters, int(interval) * 2, restCount, session, authorization, requestHeader)
 
+def createPrWd(batchId):
+	# UCM
+	prwdFile = toBase64(inputDir, prwdZip)
+	prwdFileName = prwdZip
+	wdAccount = "scm$/wis$/workdefinition$"
+
+	prwdUcmDocId = uploadUcm(erpUrl, prwdFile, prwdFileName, wdAccount, restCount)
+	time.sleep(3)
+
+	# LoadInterface
+	loadWdParams = ','.join(('133', prwdUcmDocId, 'N', 'N'))
+	submitEssJob(erpUrl, interfacePckName, interfaceJobDefName, loadWdParams, int(interval) * 2, restCount, session,
+				 authorization, requestHeader)
+
+	# LoadTables
+	wdJobPackName = "/oracle/apps/ess/scm/commonWorkSetup/workDefinitions/massImport/"
+	wdJobDefName = "ImportWorkDefinitionJob"
+	wdParameters = batchId
+	submitEssJob(erpUrl, wdJobPackName, wdJobDefName, wdParameters, int(interval) * 2, restCount, session, authorization, requestHeader)
 
 if __name__ == "__main__":
 	'''	Set Variables from XML, logging, and establish Session 	'''
@@ -339,12 +362,14 @@ if __name__ == "__main__":
 	''' WC and Resources START'''
 	wcId = createWc(restCount)
 	createResources(restCount, batchChunks)
-	createWcResourceSingle(wcId, restCount, batchChunks)
+	createWcResourceSingle(wcId, restCount)
+	#createWcResourceSingle(300100605584136, restCount)
 
-	createItems('1111')
-	createStructure('888')
-	createWd('8765')
-	createWo('1144')
+	createItems(itemBatch)
+	createStructure(structureBatch)
+	createWd(wdBatch)
+	createWo(woBatch)
+	#createPrWd(wdPrBatch)
 	#createWo('4411')
 
 	#essDetails(erpUrl, 57127, log, session, authorization, requestHeader)
