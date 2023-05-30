@@ -1,21 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <psConfiguration>
     <variableList>
-        <!--<url>https://fuscdrmsmc122-fa-ext.us.oracle.com/fscmRestApi/resources/11.13.18.05</url>-->
+        <!--<url>https://fuscdrmsmc443-fa-ext.us.oracle.com/fscmRestApi/resources/11.13.18.05</url>-->
         <!--<url>https://m6scmc231nd.fa.dc1.c9dev2.oraclecorp.com/fscmRestApi/resources/11.13.18.05</url>-->
-        <url>https://fa-ejgl-pintlabfadev.fa.ocs.oc-test.com/fscmRestApi/resources/11.13.18.05</url>
+        <url>https://fa-eoby-pintlabfadev.fa.ocs.oc-test.com/fscmRestApi/resources/11.13.18.05</url>
         <inputDir>C:\Users\alkim.ORADEV\Documents\1PS\fbdi\1000</inputDir>
         <user>PS_ALL</user>
+        <mfgUser>mfg_qa</mfgUser>
         <pimUser>PIMQA</pimUser>
         <password>Welcome1</password>
         <interval>15</interval>
         <resourceList>resources.txt</resourceList>
         <batchChunks>100</batchChunks>
         <recordLimit>5000</recordLimit>
-        <excelFile>psrData.xls</excelFile>
+        <excelFile>rebecca.xls</excelFile>
         <itemZip>egpitemsimport.zip</itemZip>
         <wdZip>WisWdImport.zip</wdZip>
         <structureZip>EgpStructuresImport.Zip</structureZip>
         <woZip>WieWoBatches.zip</woZip>
+        <prwdZip>WisProcessWdImport.zip</prwdZip>
+
+        <itemBatch>1111</itemBatch>
+        <structureBatch>888</structureBatch>
+        <wdBatch>8765</wdBatch>
+        <woBatch>1144</woBatch>
+        <wdPrBatch>5150</wdPrBatch>
     </variableList>
 </psConfiguration>
