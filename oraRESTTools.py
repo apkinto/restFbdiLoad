@@ -56,7 +56,7 @@ def getRest( url, session, payload, query, requestHeader, authorization, recordL
 	
 	try:
 		r = session.get( url, data=payload, headers=requestHeader, params=querystring, auth=authorization )
-		print ('***', r.status_code, r.text)
+		#print ('***', r.status_code, r.text)
 		data = r.content
 		output = json.loads(data)
 		time = getTime() - start
@@ -112,10 +112,10 @@ def postBatchRest( url, session, partsList, n, authorization, log, count ):
 			r = session.post( url, json=partsBody, headers=batchHeader, auth=authorization )
 			time = getTime() - start
 			log.info('\t\tStatusCode: %s\t%s sec\t%s %s' % (r.status_code, time, urlObject, (count+1)*n))
-			print ('****', r.text, r.status_code)
+			#print ('****', r.text, r.status_code)
 			count += 1
 		except:
-			print ('**** MADE IT')
+			#print ('**** MADE IT')
 			r.status_code
 			time = getTime() - start
 			log.info('\t\tStatusCode: %s\t**ERROR**%s' %(r.status_code, r.text, urlObject))
@@ -188,7 +188,7 @@ def writeCsv ( list, filename, outDir ):
 
 def getUrl ( *n ):
 	params = [i for i in n if i]
-	newUrl = '/'.join( params)
+	newUrl = '/'.join(params)
 	
 	return newUrl
 	
